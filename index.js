@@ -9,6 +9,11 @@ const buttonSplitHit = document.getElementById('split-hit');
 const buttonSplitStand = document.getElementById('split-stand');
 const gameButtons = [buttonHit, buttonStand, buttonSplit, buttonSplitHit, buttonSplitStand];
 
+const playerHandValueDisplay = document.getElementById('player-hand-value');
+const dealerHandValueDisplay = document.getElementById('dealer-hand-value');
+const playerSplitHandValueDisplay = document.getElementById('player-split-hand-value');
+const handValueDisplays = [dealerHandValueDisplay, playerHandValueDisplay, playerSplitHandValueDisplay]
+
 class Card {
     constructor(name, value, suite) {
         this.name = name;
@@ -69,9 +74,10 @@ class Deck {
 }
 
 class Hand {
-    constructor() {
+    constructor(handValueDisplay) {
         this.cards = [];
         this.value = 0;
+        this.handValueDisplay = handValueDisplay;
     }
 
     addCard(card) {
@@ -91,11 +97,18 @@ class Hand {
             handValue += card.value;
         }
         this.value = handValue;
+        //this.handValueDisplay.textContent = handValue;
     }
 }
 
+let hands = [];
+function addNewHand(handValueDisplay) {
+    hands.push(new Hand(handValueDisplay));
+}
+
 let deck = new Deck(6);
-let hands = [new Hand(), new Hand(), new Hand()];
+
+handValueDisplays.forEach(handValueDisplay => {addNewHand(handValueDisplay)});
 let dealerHand = hands[0];
 let playerHand = hands[1];
 let playerSplitHand = hands[2];
@@ -177,16 +190,9 @@ function enableAllGameButtons() {
 
 dealNewRound(handSize);
 
-console.table(hands);
-hands.forEach(hand => {
-    console.table(hand.cards);
-});
+
 
 splitHand();
 
-console.table(hands);
-hands.forEach(hand => {
-    console.table(hand.cards);
-});
-
-console.log(buttons);
+console.log(gameButtons);
+console.log(handValueDisplays);
