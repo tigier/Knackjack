@@ -1,12 +1,10 @@
-Document.designMode = 'on';
-const suits = ['diamonds', 'spades', 'clubs', 'hearts'];
+const suits = ['♦', '♠', '♣', '♥'];
 const symbols = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 const handSize = 2;
 const buttonHit = document.getElementById('hit');
 const buttonStand = document.getElementById('stand');
 const buttonSplit = document.getElementById('split');
 const buttonSplitHit = document.getElementById('split-hit');
-const buttonSplitStand = document.getElementById('split-stand');
 const gameButtons = [buttonHit, buttonStand, buttonSplit, buttonSplitHit, buttonSplitStand];
 
 const playerHandValueDisplay = document.getElementById('player-hand-value');
@@ -26,19 +24,6 @@ class Deck {
     constructor(numberOfDecks = 6) {
         this.cards = [];
         this.discardPile = [];
-        for(let suit of suits) {
-            for (let symbol of symbols) {
-                let cardValue = symbol;
-                if (symbol === 'A') {
-                    cardValue = 11;
-                } else if (['K', 'Q', 'J'].includes(symbol)) {
-                    cardValue = 10;
-                } else {
-                    cardValue = parseInt(symbol);
-                }
-                this.cards.push(new Card(`${symbol}${suit[0].toUpperCase()}`, cardValue, suit));
-            }
-        }
         for (let i = 1; i < numberOfDecks; i++) {
             this.cards = this.cards.concat(this.cards);
         }
@@ -50,6 +35,22 @@ class Deck {
             for (let j = this.cards.length - 1; j > 0; j--) {
                 const randomIndex = Math.floor(Math.random() * (j + 1));
                 [this.cards[j], this.cards[randomIndex]] = [this.cards[randomIndex], this.cards[j]];
+            }
+        }
+    }
+
+    buildDeck() {
+        for(let suit of suits) {
+            for (let symbol of symbols) {
+                let cardValue = symbol;
+                if (symbol === 'A') {
+                    cardValue = 11;
+                } else if (['K', 'Q', 'J'].includes(symbol)) {
+                    cardValue = 10;
+                } else {
+                    cardValue = parseInt(symbol);
+                }
+                this.cards.push(new Card(`${symbol}${suit[0].toUpperCase()}`, cardValue, suit));
             }
         }
     }
@@ -80,24 +81,39 @@ class Hand {
         this.handValueDisplay = handValueDisplay;
     }
 
-    addCard(card) {
-        this.cards.push(card);
-        this.calculateValue();
+    addValue(value) {
+        this.value += value;
     }
     
+    addCard(card) {
+        this.cards.push(card);
+        this.addValue(card.value);
+    }
+
     removeCard() {
         const card = this.cards.pop();
-        this.calculateValue();
+        this.addValue(-card.value);
+        if (card.value === 1) card.value = 11;
         return card;
     }
 
-    calculateValue() {
-        let handValue = 0;
-        for (let card of this.cards) {
-            handValue += card.value;
+    discardEntireHand() {
+        while (this.cards.length) {
+            deck.discardCard(this.removeCard());
+            this.value = 0;
         }
-        this.value = handValue;
-        //this.handValueDisplay.textContent = handValue;
+    }
+
+    dealToSixteenOrHigher() {
+        while (this.value < 17) {
+            this.addCard(deck.dealCard());
+            if (this.value > 21) {
+                if (this.cards.some(card => card.value === 11)) {
+                    this.cards.find(card => card.value === 11).value = 1;
+                    this.addValue(-10);
+                }
+            }
+        }
     }
 }
 
@@ -116,12 +132,6 @@ let playerSplitHand = hands[2];
 function dealCardsToHand(hand, amount) {
     for (let i = 0; i < amount; i++) {
           hand?.addCard(deck.dealCard());
-    }
-}
-
-function discardEntireHand(hand) {
-    while (hand?.cards.length) {
-       deck.discardCard(hand.removeCard());
     }
 }
 
