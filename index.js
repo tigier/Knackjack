@@ -1,16 +1,52 @@
-const suits = ['♦', '♠', '♣', '♥'];
+const suits = ['&#9830;', '&#9824;', '&#9827;', '&#9829;'];
 const symbols = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 const handSize = 2;
+
+//Buttons
 const buttonHit = document.getElementById('hit');
 const buttonStand = document.getElementById('stand');
 const buttonSplit = document.getElementById('split');
 const buttonSplitHit = document.getElementById('split-hit');
-const gameButtons = [buttonHit, buttonStand, buttonSplit, buttonSplitHit, buttonSplitStand];
+const buttonBet = document.getElementById('bet');
+const gameButtons = [buttonHit, buttonStand, buttonSplit, buttonSplitHit];
 
-const playerHandValueDisplay = document.getElementById('player-hand-value');
-const dealerHandValueDisplay = document.getElementById('dealer-hand-value');
-const playerSplitHandValueDisplay = document.getElementById('player-split-hand-value');
-const handValueDisplays = [dealerHandValueDisplay, playerHandValueDisplay, playerSplitHandValueDisplay]
+const handValueDisplays = [
+    document.getElementById('dealer-hand-value'),
+    document.getElementById('player-hand-value')
+]
+const pointsDisplay = document.getElementById('points');
+const betInput = document.getElementById('bet-amount');
+
+class Player {
+    constructor() {
+        this.points = 10;
+        this._bet;
+        this.bet = 0;
+    }
+
+    set bet(value) {
+        this._bet = value;
+        this.addPoints(-value);
+    }
+
+    addPoints(value) {
+        this.points += value;
+        this.updatePointsDisplay(value);
+    }
+
+    updatePointsDisplay(add) {
+        if (add > 0) {
+            pointsDisplay.textContent = `${this.points - add} + ${add}`;
+            console.log(`${this.points - add} + ${add}`);
+        } else if (add < 0) {
+            let posAdd = Math.abs(add);
+            pointsDisplay.textContent = `${this.points + posAdd} - ${posAdd}`;
+        }else {
+            pointsDisplay.textContent = this.points;
+        }
+        betInput.max = this.points;
+    }
+}
 
 class Card {
     constructor(name, value, suite) {
@@ -24,6 +60,7 @@ class Deck {
     constructor(numberOfDecks = 6) {
         this.cards = [];
         this.discardPile = [];
+        this.buildDeck();
         for (let i = 1; i < numberOfDecks; i++) {
             this.cards = this.cards.concat(this.cards);
         }
@@ -50,7 +87,7 @@ class Deck {
                 } else {
                     cardValue = parseInt(symbol);
                 }
-                this.cards.push(new Card(`${symbol}${suit[0].toUpperCase()}`, cardValue, suit));
+                this.cards.push(new Card(`${symbol}${suit}`, cardValue, suit));
             }
         }
     }
@@ -75,10 +112,9 @@ class Deck {
 }
 
 class Hand {
-    constructor(handValueDisplay) {
+    constructor() {
         this.cards = [];
         this.value = 0;
-        this.handValueDisplay = handValueDisplay;
     }
 
     addValue(value) {
@@ -88,6 +124,17 @@ class Hand {
     addCard(card) {
         this.cards.push(card);
         this.addValue(card.value);
+        if(this.checkForBust()) {
+            switch (this) {
+                case playerHand:
+                    console.log('Player busts');
+                    winner('dealer');
+                    break;
+                case dealerHand:
+                    console.log('Dealer busts');
+                    break;
+            }
+        }
     }
 
     removeCard() {
@@ -107,78 +154,148 @@ class Hand {
     dealToSixteenOrHigher() {
         while (this.value < 17) {
             this.addCard(deck.dealCard());
-            if (this.value > 21) {
-                if (this.cards.some(card => card.value === 11)) {
-                    this.cards.find(card => card.value === 11).value = 1;
-                    this.addValue(-10);
-                }
-            }
         }
+    }
+
+    checkForBust() {
+        if (this.value <= 21) return false;
+        if (this.cards.some(card => card.value === 11)) {
+            this.cards.find(card => card.value === 11).value = 1;
+            this.addValue(-10);
+        }
+        return this.value > 21;
     }
 }
 
-let hands = [];
-function addNewHand(handValueDisplay) {
-    hands.push(new Hand(handValueDisplay));
-}
-
+const player = new Player('Player');
+let hands = [new Hand(), new Hand()];
 let deck = new Deck(6);
-
-handValueDisplays.forEach(handValueDisplay => {addNewHand(handValueDisplay)});
 let dealerHand = hands[0];
 let playerHand = hands[1];
-let playerSplitHand = hands[2];
+
+function updateHandValueDisplay() {
+    handValueDisplays.forEach((display, index) => {
+        if (index === 0) {
+            display.innerHTML = `${hands[index].cards[0].name} ?? => ${hands[index].cards[0].value} + ??`;
+            return;
+        }
+        display.innerHTML = hands[index].cards.map(card => card.name).join(' ') + ` => ${hands[index].value}`;
+    });
+}
+
+function revealDealerHand() {
+    handValueDisplays[0].innerHTML = dealerHand.cards.map(card => card.name).join(' ') + ` => ${dealerHand.value}`;
+}
+
+
+function checkForBlackjack() {
+    if (playerHand.value === 21 && dealerHand.value === 21) {
+        revealDealerHand();
+        console.log('Push');
+        winner('push');
+        return;
+    }
+    if (playerHand.value === 21) {
+        console.log('Player wins with blackjack');
+        winner('blackjack');
+        return;
+    }
+    if (dealerHand.value === 21) {
+        revealDealerHand();
+        console.log('Dealer wins with blackjack');
+        winner('dealer');
+    }
+}
 
 function dealCardsToHand(hand, amount) {
     for (let i = 0; i < amount; i++) {
-          hand?.addCard(deck.dealCard());
-    }
-}
-
-function burnTopCardOfDeck(amount) {
-    for (let i = 0; i < amount; i++) {
-        deck.discardCard(deck.dealCard());
+        hand?.addCard(deck.dealCard());
     }
 }
 
 function dealNewRound(amount) {
-    burnTopCardOfDeck(1);
     hands.forEach(hand => {
-        discardEntireHand(hand);
+        hand.discardEntireHand();
     });
     for (let i = 0; i < amount; i++) {
         dealCardsToHand(playerHand, 1);
         dealCardsToHand(dealerHand, 1);
     }
+    updateHandValueDisplay();
 }
 
-function splitHand() {
-    if (playerHand.cards.length != 2) {
-        console.log('You can only split with two cards');
-    } else if (playerSplitHand.cards.length) {
-        console.log('You can only split once');
-    } else {
-        playerSplitHand.addCard(playerHand.removeCard());
-        dealCardsToHand(playerHand, 1);
-        dealCardsToHand(playerSplitHand, 1);
+function hitButtonPressed(hand) {
+    dealCardsToHand(hand, 1);
+    updateHandValueDisplay();
+}
+
+function standButtonPressed() {
+    dealerHand.dealToSixteenOrHigher();
+    revealDealerHand();
+    if (dealerHand.value > playerHand.value && dealerHand.value <= 21) {
+        console.log('Dealer wins');
+        winner('dealer');
+        return;
     }
-}
-
-function checkGameStatus() {
-    if (playerHand.value === 21) {
-        console.log('You got blackjack!');
-    } else if (playerHand.value > 21) {
-        console.log('You busted!');
-    } else {
-        return
+    if (dealerHand.value === playerHand.value) {
+        console.log('Push');
+        winner('push');
+        return;
     }
-    butt
-    
+    console.log('Player wins');
+    winner('player');
 }
 
-function playerHit() {
-    dealCardsToHand(playerHand, 1);
-    checkGameStatus();
+function winner(win) {
+    switch (win) {
+        case 'player':
+            console.log('Player receives double their bet');
+            player.addPoints(player._bet*2);
+            break;
+        case 'dealer':
+            console.log('Player loses their bet');
+            break;
+        case 'push':
+            console.log('Player receives their bet back');
+            player.addPoints(player._bet);
+            break;
+        case 'blackjack':
+            console.log('Player receives 2.5 times their bet');
+            player.addPoints(player._bet*2.5);
+            break;
+    }
+    displayColors(win);
+}
+
+function startNewRound() {
+    player.bet = Number(betInput.value);
+    displayColors('reset');
+    dealNewRound(handSize);
+    checkForBlackjack();
+}
+
+function displayColors(win) {
+    switch (win) {
+        case 'player':
+            handValueDisplays[1].style.color = 'green';
+            handValueDisplays[0].style.color = 'red';
+            break;
+        case 'dealer':
+            handValueDisplays[0].style.color = 'green';
+            handValueDisplays[1].style.color = 'red';
+            break;
+        case 'push':
+            handValueDisplays[0].style.color = 'blue';
+            handValueDisplays[1].style.color = 'blue';
+            break;
+        case 'blackjack':
+            handValueDisplays[1].style.color = 'green';
+            break;
+        case 'reset':
+            handValueDisplays.forEach(display => {
+                display.style.color = 'black';
+            });
+    }
 }
 
 function disableButtons(button) {
@@ -196,13 +313,23 @@ function enableAllGameButtons() {
     gameButtons.forEach(button => {
         enableButtons(button);
     });
-}  
+}
 
-dealNewRound(handSize);
+buttonBet.onclick = () => {startNewRound()}
+buttonHit.onclick = () => {hitButtonPressed(playerHand)}
+buttonStand.onclick = () => {standButtonPressed()}
 
 
+betInput.onchange = () => {
+    switch (true) {
+        case betInput.value > player.points:
+            betInput.value = player.points;
+            break;
+        case betInput.value < 1:
+            betInput.value = 1;
+            break;
+    }
+}
 
-splitHand();
 
-console.log(gameButtons);
-console.log(handValueDisplays);
+console.log("loaded");
